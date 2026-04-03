@@ -63,6 +63,7 @@ const githubIconClass =
 
 export function PortfolioContent() {
   const [draft, setDraft] = useState("");
+  const [isTypingFieldFocused, setIsTypingFieldFocused] = useState(false);
   const typingFieldId = useId();
   return (
     <div className="relative isolate min-h-dvh text-foreground">
@@ -207,27 +208,38 @@ export function PortfolioContent() {
             <label className="sr-only" htmlFor={typingFieldId}>
               Keyboard input
             </label>
-            <textarea
-              id={typingFieldId}
-              rows={1}
-              value={draft}
-              spellCheck={false}
-              aria-label="Keyboard input"
-              className={typingLineClass}
-              onChange={(e) => {
-                const el = e.target;
-                const next = el.value.replace(/\r?\n/g, "");
-                setDraft(next);
-                requestAnimationFrame(() => {
+            <div className="relative w-full">
+              <textarea
+                id={typingFieldId}
+                rows={1}
+                value={draft}
+                spellCheck={false}
+                aria-label="Keyboard input"
+                placeholder="Type here..."
+                className={`${typingLineClass} placeholder:text-muted-foreground/60`}
+                onFocus={() => setIsTypingFieldFocused(true)}
+                onBlur={() => setIsTypingFieldFocused(false)}
+                onChange={(e) => {
+                  const el = e.target;
+                  const next = el.value.replace(/\r?\n/g, "");
+                  setDraft(next);
                   requestAnimationFrame(() => {
-                    el.scrollLeft = el.scrollWidth;
+                    requestAnimationFrame(() => {
+                      el.scrollLeft = el.scrollWidth;
+                    });
                   });
-                });
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") e.preventDefault();
-              }}
-            />
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") e.preventDefault();
+                }}
+              />
+              {!isTypingFieldFocused && draft.length === 0 ? (
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute top-1 left-0 inline-block h-5 w-px animate-pulse bg-foreground/90 sm:top-1.5 sm:h-6"
+                />
+              ) : null}
+            </div>
             <div className="w-full min-w-0 pb-2">
               <MacKeyboard soundSrc="" />
             </div>
