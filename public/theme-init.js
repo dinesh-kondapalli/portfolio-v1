@@ -1,12 +1,18 @@
 (() => {
   try {
-    const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const sync = () => {
-      document.documentElement.classList.toggle("dark", media.matches);
-    };
-    sync();
-    media.addEventListener("change", sync);
+    const root = document.documentElement;
+    const stored = localStorage.getItem("theme");
+    root.classList.remove("light", "dark");
+    if (stored === "light" || stored === "dark") {
+      root.classList.add(stored);
+    } else {
+      root.classList.add("dark");
+    }
   } catch {
-    /* ignore */
+    try {
+      document.documentElement.classList.add("dark");
+    } catch {
+      /* ignore */
+    }
   }
 })();

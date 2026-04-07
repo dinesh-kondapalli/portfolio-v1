@@ -1,9 +1,11 @@
 "use client";
 
 import { GithubLogo } from "@phosphor-icons/react";
-import { useId, useState } from "react";
+import { useTheme } from "next-themes";
+import * as React from "react";
 import { GithubCalendar } from "@/components/ui/github-calendar";
 import { MacKeyboard } from "@/components/ui/mac-keyboard";
+import { useThemeToggle } from "@/components/ui/skiper-ui/skiper26";
 
 type Work = {
   title: string;
@@ -55,16 +57,47 @@ const linkClass =
 const sectionShell = "mx-auto w-full max-w-5xl";
 const textColumn = "w-full max-w-lg";
 
-const typingLineClass =
-  "min-h-[1.75rem] w-full resize-none overflow-x-auto overflow-y-hidden border-0 bg-transparent py-1 text-foreground text-base font-medium leading-normal outline-none focus-visible:outline-none focus-visible:ring-0 caret-foreground sm:min-h-[2rem] sm:text-lg [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden whitespace-nowrap";
-
 const githubIconClass =
   "size-5 shrink-0 text-muted-foreground transition-colors hover:text-foreground";
 
+/** Sounds for the on-screen Space / Caps Lock keys (files in `/public`) */
+const INTERACTIVE_KEY_SOUNDS: Partial<Record<string, string>> = {
+  Space: "/star-platinum-part-6-time-stop-sound-effect.mp3",
+  CapsLock: "/thehand.mp3",
+};
+
 export function PortfolioContent() {
-  const [draft, setDraft] = useState("");
-  const [isTypingFieldFocused, setIsTypingFieldFocused] = useState(false);
-  const typingFieldId = useId();
+  const { resolvedTheme } = useTheme();
+  const { setCrazyLightTheme, setCrazyDarkTheme } = useThemeToggle({
+    variant: "circle",
+    start: "bottom-center",
+  });
+
+  const keyboardSectionRef = React.useRef<HTMLElement>(null);
+  const [keyboardInView, setKeyboardInView] = React.useState(false);
+
+  React.useEffect(() => {
+    const el = keyboardSectionRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setKeyboardInView(entry.isIntersecting);
+      },
+      { threshold: 0.25 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const onSpaceSecret = React.useCallback(() => {
+    if (!keyboardInView) return;
+    if (resolvedTheme !== "light") {
+      setCrazyLightTheme();
+    } else {
+      setCrazyDarkTheme();
+    }
+  }, [keyboardInView, resolvedTheme, setCrazyLightTheme, setCrazyDarkTheme]);
+
   return (
     <div className="relative isolate min-h-dvh text-foreground">
       <div className="relative z-10">
@@ -190,6 +223,7 @@ export function PortfolioContent() {
         </section>
 
         <section
+          ref={keyboardSectionRef}
           className="px-4 py-20 sm:px-8 md:px-12"
           aria-labelledby="interactive-keys-heading"
         >
@@ -202,46 +236,16 @@ export function PortfolioContent() {
                 Interactive keys
               </h2>
               <p className="mt-2 text-muted-foreground text-xs sm:text-sm">
-                Focus the field and type—the layout lights up with you.
+                Press keys or click Space and Caps Lock—the layout lights up and
+                plays sound.
               </p>
             </div>
-            <label className="sr-only" htmlFor={typingFieldId}>
-              Keyboard input
-            </label>
-            <div className="relative w-full">
-              <textarea
-                id={typingFieldId}
-                rows={1}
-                value={draft}
-                spellCheck={false}
-                aria-label="Keyboard input"
-                placeholder="Type here..."
-                className={`${typingLineClass} placeholder:text-muted-foreground/60`}
-                onFocus={() => setIsTypingFieldFocused(true)}
-                onBlur={() => setIsTypingFieldFocused(false)}
-                onChange={(e) => {
-                  const el = e.target;
-                  const next = el.value.replace(/\r?\n/g, "");
-                  setDraft(next);
-                  requestAnimationFrame(() => {
-                    requestAnimationFrame(() => {
-                      el.scrollLeft = el.scrollWidth;
-                    });
-                  });
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") e.preventDefault();
-                }}
-              />
-              {!isTypingFieldFocused && draft.length === 0 ? (
-                <span
-                  aria-hidden
-                  className="pointer-events-none absolute top-1 left-0 inline-block h-5 w-px animate-pulse bg-foreground/90 sm:top-1.5 sm:h-6"
-                />
-              ) : null}
-            </div>
             <div className="w-full min-w-0 pb-2">
-              <MacKeyboard soundSrc="" />
+              <MacKeyboard
+                soundSrc=""
+                keySoundMap={INTERACTIVE_KEY_SOUNDS}
+                onSpacePress={onSpaceSecret}
+              />
             </div>
           </div>
         </section>

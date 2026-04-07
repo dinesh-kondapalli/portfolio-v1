@@ -35,13 +35,15 @@ const fRowIconProps = {
   "aria-hidden": true,
 };
 
-// Context to share active keys state and OS Caps Lock (modifier) state
+// Context to share active keys state, Caps Lock LED, and on-screen key presses
 const KeyboardContext = React.createContext<{
   activeKeys: Set<string>;
   capsLockOn: boolean;
+  activateVirtualKey: (code: string) => void;
 }>({
   activeKeys: new Set(),
   capsLockOn: false,
+  activateVirtualKey: () => {},
 });
 
 function CapsLockIndicator() {
@@ -157,11 +159,17 @@ export interface MacKeyProps extends React.HTMLAttributes<HTMLDivElement> {
   width?: number;
   keyCode?: string | string[]; // Can be a single code or array of codes
   noAspectRatio?: boolean; // Skip aspect-ratio on wrapper (for arrow half-height keys)
+  /** When set with a single `keyCode`, pointer/keyboard activates the key (sound + pulse) */
+  interactive?: boolean;
 }
 
 interface MacKeyboardProps extends React.HTMLAttributes<HTMLDivElement> {
-  // Optional prop to provide a custom sound URL
+  /** Default click sound (`KeyboardEvent.code` uses default when not in `keySoundMap`) */
   soundSrc?: string;
+  /** Per-key sounds, keyed by `KeyboardEvent.code` (e.g. `Space`, `CapsLock`) */
+  keySoundMap?: Partial<Record<string, string>>;
+  /** Fires when Space is pressed (physical key or on-screen Space), after sound is triggered */
+  onSpacePress?: () => void;
 }
 
 /** Layout width (px) used for scale-to-fit when the container is narrower */
@@ -266,65 +274,135 @@ function KeyboardViewportFit({
 export function MacKeyboard({
   className,
   soundSrc = "/audio/key-press.wav",
+  keySoundMap,
+  onSpacePress,
   children,
   ...rest
 }: MacKeyboardProps) {
+  const onSpacePressRef = React.useRef(onSpacePress);
+  React.useEffect(() => {
+    onSpacePressRef.current = onSpacePress;
+  }, [onSpacePress]);
   const [activeKeys, setActiveKeys] = React.useState<Set<string>>(new Set());
   const [capsLockOn, setCapsLockOn] = React.useState(false);
   /** Survives effect re-runs so keyup still pairs with keydown (closure `let` would reset). */
   const capsDownPendingRef = React.useRef(false);
   const capsNoKeyUpTimerRef = React.useRef<number | null>(null);
   const audioCtxRef = React.useRef<AudioContext | null>(null);
-  const audioBufferRef = React.useRef<AudioBuffer | null>(null);
+  const buffersByUrlRef = React.useRef<Map<string, AudioBuffer>>(new Map());
+  const virtualTimersRef = React.useRef<Map<string, number>>(new Map());
 
   React.useEffect(() => {
-    if (!soundSrc) return;
-    // Use Web Audio API for low-latency, short key click sounds
+    const urls = new Set<string>();
+    if (soundSrc) urls.add(soundSrc);
+    for (const url of Object.values(keySoundMap ?? {})) {
+      if (url) urls.add(url);
+    }
+    if (urls.size === 0) return;
+
     const ctx = new (
       window.AudioContext ||
       (window as unknown as { webkitAudioContext: typeof AudioContext })
         .webkitAudioContext
     )();
     audioCtxRef.current = ctx;
+    const map = new Map<string, AudioBuffer>();
+    buffersByUrlRef.current = map;
 
-    fetch(soundSrc)
-      .then((res) => res.arrayBuffer())
-      .then((buf) => ctx.decodeAudioData(buf))
-      .then((decoded) => {
-        audioBufferRef.current = decoded;
-      })
-      .catch(() => {}); // Silently fail if audio can't load
+    let cancelled = false;
+    for (const url of urls) {
+      fetch(url)
+        .then((res) => res.arrayBuffer())
+        .then((ab) => ctx.decodeAudioData(ab))
+        .then((decoded) => {
+          if (!cancelled) map.set(url, decoded);
+        })
+        .catch(() => {});
+    }
 
     return () => {
+      cancelled = true;
       ctx.close().catch(() => {});
     };
-  }, [soundSrc]);
+  }, [soundSrc, keySoundMap]);
 
-  const playClick = React.useCallback(() => {
-    const ctx = audioCtxRef.current;
-    const buffer = audioBufferRef.current;
-    if (!ctx || !buffer) return;
+  const playForCode = React.useCallback(
+    (code: string) => {
+      const ctx = audioCtxRef.current;
+      if (!ctx) return;
 
-    const play = () => {
-      const source = ctx.createBufferSource();
-      source.buffer = buffer;
+      const customUrl = keySoundMap?.[code];
+      let buffer: AudioBuffer | undefined;
+      let gainValue = 0.15;
+      if (customUrl) {
+        buffer = buffersByUrlRef.current.get(customUrl);
+        gainValue = 0.42;
+      } else if (soundSrc) {
+        buffer = buffersByUrlRef.current.get(soundSrc);
+      }
+      if (!buffer) return;
 
-      const gain = ctx.createGain();
-      gain.gain.value = 0.15; // Set volume very low (15%) so it's a subtle click
+      const play = () => {
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
 
-      source.connect(gain);
-      gain.connect(ctx.destination);
-      source.start(0);
+        const gain = ctx.createGain();
+        gain.gain.value = gainValue;
+
+        source.connect(gain);
+        gain.connect(ctx.destination);
+        source.start(0);
+      };
+
+      if (ctx.state === "suspended") {
+        ctx
+          .resume()
+          .then(play)
+          .catch(() => {});
+      } else {
+        play();
+      }
+    },
+    [keySoundMap, soundSrc],
+  );
+
+  const activateVirtualKey = React.useCallback(
+    (code: string) => {
+      const prev = virtualTimersRef.current.get(code);
+      if (prev !== undefined) window.clearTimeout(prev);
+
+      if (code === "CapsLock") {
+        setCapsLockOn((v) => !v);
+      }
+
+      setActiveKeys((p) => {
+        const n = new Set(p);
+        n.add(code);
+        return n;
+      });
+      const t = window.setTimeout(() => {
+        setActiveKeys((prev) => {
+          const n = new Set(prev);
+          n.delete(code);
+          return n;
+        });
+        virtualTimersRef.current.delete(code);
+      }, 140);
+      virtualTimersRef.current.set(code, t);
+
+      playForCode(code);
+      if (code === "Space") onSpacePressRef.current?.();
+    },
+    [playForCode],
+  );
+
+  React.useEffect(() => {
+    return () => {
+      for (const id of virtualTimersRef.current.values()) {
+        window.clearTimeout(id);
+      }
+      virtualTimersRef.current.clear();
     };
-
-    if (ctx.state === "suspended") {
-      ctx
-        .resume()
-        .then(play)
-        .catch(() => {});
-    } else {
-      play();
-    }
   }, []);
 
   React.useEffect(() => {
@@ -365,7 +443,8 @@ export function MacKeyboard({
         return newSet;
       });
 
-      playClick();
+      playForCode(e.code);
+      if (e.code === "Space") onSpacePressRef.current?.();
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
@@ -393,10 +472,12 @@ export function MacKeyboard({
       window.removeEventListener("keydown", handleKeyDown, true);
       window.removeEventListener("keyup", handleKeyUp, true);
     };
-  }, [playClick]);
+  }, [playForCode]);
 
   return (
-    <KeyboardContext.Provider value={{ activeKeys, capsLockOn }}>
+    <KeyboardContext.Provider
+      value={{ activeKeys, capsLockOn, activateVirtualKey }}
+    >
       {children ? (
         <div
           className={cn(
@@ -552,6 +633,7 @@ export function MacKeyboard({
             <MacKey
               width={1.75}
               keyCode="CapsLock"
+              interactive
               className="relative items-start pl-2 pr-2 text-zinc-300 sm:pl-4 sm:pr-3"
             >
               <CapsLockIndicator />
@@ -685,7 +767,7 @@ export function MacKeyboard({
               </span>
             </MacKey>
             {/* Spacebar */}
-            <MacKey width={4} keyCode="Space" />
+            <MacKey width={4} keyCode="Space" interactive aria-label="Space" />
             <MacKey
               width={1.5}
               keyCode="MetaRight"
@@ -784,9 +866,15 @@ export function MacKey({
   children,
   keyCode,
   noAspectRatio,
+  interactive,
+  onPointerDown,
+  onKeyDown,
   ...props
 }: MacKeyProps) {
-  const { activeKeys } = React.useContext(KeyboardContext);
+  const { activeKeys, activateVirtualKey } = React.useContext(KeyboardContext);
+
+  const interactCode =
+    interactive && typeof keyCode === "string" ? keyCode : null;
 
   const isActive = React.useMemo(() => {
     // 1. Check explicit keyCode prop
@@ -836,6 +924,69 @@ export function MacKey({
   // For width=1 keys, use aspect-ratio to define the row height.
   // For wider keys, omit aspect-ratio so they stretch to the row height via align-items: stretch.
   const applyAspectRatio = !noAspectRatio;
+
+  const faceClassName = cn(
+    "group relative flex h-full w-full min-w-0 select-none flex-col items-center justify-center overflow-hidden rounded-[4px] border border-white/[0.05] bg-[#121212] text-zinc-100",
+    "shadow-[inset_0_1px_0_rgba(255,255,255,0.05),inset_0_-1px_0_rgba(0,0,0,0.65),0_1px_0_rgba(0,0,0,0.4)]",
+    isActive &&
+      "translate-y-px scale-[0.99] border-white/[0.04] bg-[#0a0a0a] shadow-[inset_0_2px_3px_rgba(0,0,0,0.6)]",
+    "transition-all duration-100 active:translate-y-px active:scale-[0.99]",
+    interactCode && "cursor-pointer",
+    className,
+  );
+
+  const faceInner = (
+    <>
+      {/* Icon only keys (F-keys) */}
+      {icon && !label && !subLabel && !children && (
+        <div className="flex h-full min-h-0 flex-col items-center justify-between py-1 text-zinc-100 sm:py-2">
+          <span className="text-[12px] sm:text-[14px] lg:text-[15px]">
+            {icon}
+          </span>
+          {iconLabel && (
+            <span className="text-[5px] leading-none font-medium text-zinc-500 sm:text-[7px]">
+              {iconLabel}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Number/Symbol keys */}
+      {subLabel && (
+        <div className="flex h-full min-h-0 flex-col items-center justify-between py-1 sm:py-2">
+          <span className="text-[9px] font-normal text-zinc-500 sm:text-xs">
+            {subLabel}
+          </span>
+          <span className="text-[11px] font-medium text-zinc-100 sm:text-sm">
+            {label}
+          </span>
+        </div>
+      )}
+
+      {/* Letter keys */}
+      {!subLabel &&
+        !icon &&
+        typeof label === "string" &&
+        label.length === 1 && (
+          <span className="font-medium text-sm text-zinc-100 sm:text-base lg:text-lg">
+            {label}
+          </span>
+        )}
+
+      {/* Modifier keys with text label */}
+      {!subLabel &&
+        !icon &&
+        (typeof label !== "string" || label.length > 1) &&
+        !children && (
+          <span className="font-medium text-[9px] text-zinc-300 sm:text-xs">
+            {label}
+          </span>
+        )}
+
+      {children}
+    </>
+  );
+
   return (
     <div
       style={{
@@ -844,65 +995,37 @@ export function MacKey({
       }}
       className="min-w-0 self-stretch"
     >
-      <div
-        className={cn(
-          "group relative flex h-full w-full min-w-0 select-none flex-col items-center justify-center overflow-hidden rounded-[4px] border border-white/[0.05] bg-[#121212] text-zinc-100",
-          "shadow-[inset_0_1px_0_rgba(255,255,255,0.05),inset_0_-1px_0_rgba(0,0,0,0.65),0_1px_0_rgba(0,0,0,0.4)]",
-          isActive &&
-            "translate-y-px scale-[0.99] border-white/[0.04] bg-[#0a0a0a] shadow-[inset_0_2px_3px_rgba(0,0,0,0.6)]",
-          "transition-all duration-100 active:translate-y-px active:scale-[0.99]",
-          className,
-        )}
-        {...props}
-      >
-        {/* Icon only keys (F-keys) */}
-        {icon && !label && !subLabel && !children && (
-          <div className="flex h-full min-h-0 flex-col items-center justify-between py-1 text-zinc-100 sm:py-2">
-            <span className="text-[12px] sm:text-[14px] lg:text-[15px]">
-              {icon}
-            </span>
-            {iconLabel && (
-              <span className="text-[5px] leading-none font-medium text-zinc-500 sm:text-[7px]">
-                {iconLabel}
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* Number/Symbol keys */}
-        {subLabel && (
-          <div className="flex h-full min-h-0 flex-col items-center justify-between py-1 sm:py-2">
-            <span className="text-[9px] font-normal text-zinc-500 sm:text-xs">
-              {subLabel}
-            </span>
-            <span className="text-[11px] font-medium text-zinc-100 sm:text-sm">
-              {label}
-            </span>
-          </div>
-        )}
-
-        {/* Letter keys */}
-        {!subLabel &&
-          !icon &&
-          typeof label === "string" &&
-          label.length === 1 && (
-            <span className="font-medium text-sm text-zinc-100 sm:text-base lg:text-lg">
-              {label}
-            </span>
-          )}
-
-        {/* Modifier keys with text label */}
-        {!subLabel &&
-          !icon &&
-          (typeof label !== "string" || label.length > 1) &&
-          !children && (
-            <span className="font-medium text-[9px] text-zinc-300 sm:text-xs">
-              {label}
-            </span>
-          )}
-
-        {children}
-      </div>
+      {interactCode ? (
+        <button
+          type="button"
+          {...(props as unknown as React.ButtonHTMLAttributes<HTMLButtonElement>)}
+          className={faceClassName}
+          onPointerDown={(e) => {
+            onPointerDown?.(e as unknown as React.PointerEvent<HTMLDivElement>);
+            if (e.button !== 0) return;
+            e.preventDefault();
+            activateVirtualKey(interactCode);
+          }}
+          onKeyDown={(e) => {
+            onKeyDown?.(e as unknown as React.KeyboardEvent<HTMLDivElement>);
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              activateVirtualKey(interactCode);
+            }
+          }}
+        >
+          {faceInner}
+        </button>
+      ) : (
+        <div
+          {...props}
+          className={faceClassName}
+          {...(onPointerDown ? { onPointerDown } : {})}
+          {...(onKeyDown ? { onKeyDown } : {})}
+        >
+          {faceInner}
+        </div>
+      )}
     </div>
   );
 }

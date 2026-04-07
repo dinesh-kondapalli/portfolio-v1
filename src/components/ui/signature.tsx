@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
 import { motion } from "framer-motion";
-import opentype from "opentype.js";
+import opentype, { type Font } from "opentype.js";
+import { useEffect, useId, useState } from "react";
 import { cn } from "@/lib/utils";
 
 interface SignatureProps {
@@ -48,9 +48,9 @@ export function Signature({
   useEffect(() => {
     async function load() {
       try {
-        let font;
-        const fontPaths = fontUrl 
-          ? [fontUrl] 
+        let font: Font | undefined;
+        const fontPaths = fontUrl
+          ? [fontUrl]
           : [
               "/LastoriaBoldRegular.otf",
               "./LastoriaBoldRegular.otf",
@@ -106,6 +106,8 @@ export function Signature({
       height={height}
       viewBox={`0 0 ${width} ${height}`}
       fill="none"
+      role="img"
+      aria-label={text}
       className={cn("text-foreground overflow-visible", className)}
       initial="hidden"
       whileInView={inView ? "visible" : undefined}
@@ -116,7 +118,7 @@ export function Signature({
         <mask id={maskId} maskUnits="userSpaceOnUse">
           {paths.map((d, i) => (
             <motion.path
-              key={i}
+              key={d}
               d={d}
               stroke="white"
               strokeWidth={fontSize * 0.22}
@@ -143,7 +145,7 @@ export function Signature({
 
       {paths.map((d, i) => (
         <motion.path
-          key={i}
+          key={d}
           d={d}
           stroke={color}
           strokeWidth={2}
@@ -167,7 +169,9 @@ export function Signature({
       ))}
 
       <g mask={`url(#${maskId})`}>
-        {paths.map((d, i) => <path key={i} d={d} fill={color} />)}
+        {paths.map((d) => (
+          <path key={d} d={d} fill={color} />
+        ))}
       </g>
     </motion.svg>
   );
