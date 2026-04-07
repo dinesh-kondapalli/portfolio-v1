@@ -24,16 +24,9 @@ import {
   Globe,
   Option,
 } from "lucide-react";
+import { useTheme } from "next-themes";
 import * as React from "react";
 import { cn } from "@/lib/utils";
-
-const fRowIconClass =
-  "size-[11px] shrink-0 text-zinc-100 sm:size-[13px] lg:size-[15px]";
-const fRowIconProps = {
-  className: fRowIconClass,
-  weight: "regular" as const,
-  "aria-hidden": true,
-};
 
 // Context to share active keys state, Caps Lock LED, and on-screen key presses
 const KeyboardContext = React.createContext<{
@@ -46,8 +39,18 @@ const KeyboardContext = React.createContext<{
   activateVirtualKey: () => {},
 });
 
+/** Resolved from next-themes so light styling is not tied to Tailwind's `dark:` variant. */
+const KeyboardAppearanceContext = React.createContext<{ isDark: boolean }>({
+  isDark: true,
+});
+
+function useKeyboardAppearance() {
+  return React.useContext(KeyboardAppearanceContext);
+}
+
 function CapsLockIndicator() {
   const { capsLockOn } = React.useContext(KeyboardContext);
+  const { isDark } = useKeyboardAppearance();
   return (
     <div
       aria-hidden
@@ -55,7 +58,9 @@ function CapsLockIndicator() {
         "absolute top-1.5 left-3 size-[5px] rounded-full transition-all duration-200",
         capsLockOn
           ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]"
-          : "bg-zinc-700",
+          : isDark
+            ? "bg-zinc-700"
+            : "bg-[#AEAEB2]",
       )}
     />
   );
@@ -65,15 +70,26 @@ function CapsLockIndicator() {
  * Vector Touch ID disc: concentric circles + radial gradients avoid stacked
  * HTML borders (which alias and show seams when zoomed).
  */
-function TouchIdSensorGraphic() {
+function TouchIdSensorGraphic({ isDark }: { isDark: boolean }) {
   const uid = React.useId().replace(/:/g, "");
-  const g0 = `tid0-${uid}`;
-  const g1 = `tid1-${uid}`;
-  const g2 = `tid2-${uid}`;
-  const g3 = `tid3-${uid}`;
-  const g4 = `tid4-${uid}`;
-  const gSh = `tid-sh-${uid}`;
-  const gSpec = `tid-sp-${uid}`;
+  const L = {
+    g0: `tid0l-${uid}`,
+    g1: `tid1l-${uid}`,
+    g2: `tid2l-${uid}`,
+    g3: `tid3l-${uid}`,
+    g4: `tid4l-${uid}`,
+    gSh: `tid-shl-${uid}`,
+    gSpec: `tid-spl-${uid}`,
+  };
+  const D = {
+    g0: `tid0-${uid}`,
+    g1: `tid1-${uid}`,
+    g2: `tid2-${uid}`,
+    g3: `tid3-${uid}`,
+    g4: `tid4-${uid}`,
+    gSh: `tid-sh-${uid}`,
+    gSpec: `tid-sp-${uid}`,
+  };
 
   return (
     <svg
@@ -85,8 +101,52 @@ function TouchIdSensorGraphic() {
       shapeRendering="geometricPrecision"
     >
       <defs>
-        {/* Raised outer rim — space gray, light from top */}
-        <radialGradient id={g0} cx="50%" cy="34%" r="68%" fx="50%" fy="30%">
+        {/* Light mode — airy graphite lens; center stays mid-gray (not black) — shadow kept very soft */}
+        <radialGradient id={L.g0} cx="50%" cy="34%" r="68%" fx="50%" fy="30%">
+          <stop offset="0%" stopColor="#c4c4c8" />
+          <stop offset="50%" stopColor="#d0d0d5" />
+          <stop offset="78%" stopColor="#e2e2e7" />
+          <stop offset="92%" stopColor="#efeff2" />
+          <stop offset="100%" stopColor="#f4f4f6" />
+        </radialGradient>
+        <radialGradient id={L.g1} cx="50%" cy="38%" r="56%" fx="50%" fy="34%">
+          <stop offset="0%" stopColor="#a8a8ae" />
+          <stop offset="35%" stopColor="#b4b4ba" />
+          <stop offset="58%" stopColor="#c4c4c8" />
+          <stop offset="82%" stopColor="#d6d6db" />
+          <stop offset="100%" stopColor="#e3e3e8" />
+        </radialGradient>
+        <radialGradient id={L.g2} cx="50%" cy="41%" r="44%">
+          <stop offset="0%" stopColor="#9a9a9f" />
+          <stop offset="38%" stopColor="#a5a5aa" />
+          <stop offset="62%" stopColor="#b6b6bc" />
+          <stop offset="100%" stopColor="#c7c7cc" />
+        </radialGradient>
+        <radialGradient id={L.g3} cx="50%" cy="44%" r="36%">
+          <stop offset="0%" stopColor="#8e8e93" />
+          <stop offset="45%" stopColor="#98989d" />
+          <stop offset="100%" stopColor="#a6a6ab" />
+        </radialGradient>
+        <radialGradient id={L.g4} cx="50%" cy="32%" r="38%" fx="50%" fy="28%">
+          <stop offset="0%" stopColor="#9c9ca1" />
+          <stop offset="40%" stopColor="#949499" />
+          <stop offset="72%" stopColor="#8e8e93" />
+          <stop offset="100%" stopColor="#98989d" />
+        </radialGradient>
+        <radialGradient id={L.gSh} cx="50%" cy="112%" r="72%">
+          <stop offset="0%" stopColor="#000000" stopOpacity="0" />
+          <stop offset="50%" stopColor="#000000" stopOpacity="0.045" />
+          <stop offset="100%" stopColor="#000000" stopOpacity="0.08" />
+        </radialGradient>
+        <linearGradient id={L.gSpec} x1="50%" y1="0%" x2="50%" y2="55%">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.38" />
+          <stop offset="24%" stopColor="#ffffff" stopOpacity="0.14" />
+          <stop offset="50%" stopColor="#ffffff" stopOpacity="0" />
+          <stop offset="100%" stopColor="#000000" stopOpacity="0" />
+        </linearGradient>
+
+        {/* Dark mode — raised outer rim, space gray */}
+        <radialGradient id={D.g0} cx="50%" cy="34%" r="68%" fx="50%" fy="30%">
           <stop offset="0%" stopColor="#383838" />
           <stop offset="12%" stopColor="#2a2a2a" />
           <stop offset="28%" stopColor="#1c1c1c" />
@@ -95,16 +155,14 @@ function TouchIdSensorGraphic() {
           <stop offset="88%" stopColor="#080808" />
           <stop offset="100%" stopColor="#050505" />
         </radialGradient>
-        {/* First step — concave transition */}
-        <radialGradient id={g1} cx="50%" cy="38%" r="56%" fx="50%" fy="34%">
+        <radialGradient id={D.g1} cx="50%" cy="38%" r="56%" fx="50%" fy="34%">
           <stop offset="0%" stopColor="#222222" />
           <stop offset="22%" stopColor="#161616" />
           <stop offset="48%" stopColor="#101010" />
           <stop offset="72%" stopColor="#0b0b0b" />
           <stop offset="100%" stopColor="#060606" />
         </radialGradient>
-        {/* Subtle concentric “rings” via stepped mid-tones */}
-        <radialGradient id={g2} cx="50%" cy="41%" r="44%">
+        <radialGradient id={D.g2} cx="50%" cy="41%" r="44%">
           <stop offset="0%" stopColor="#181818" />
           <stop offset="18%" stopColor="#121212" />
           <stop offset="22%" stopColor="#0f0f0f" />
@@ -114,39 +172,49 @@ function TouchIdSensorGraphic() {
           <stop offset="62%" stopColor="#0a0a0a" />
           <stop offset="100%" stopColor="#070707" />
         </radialGradient>
-        {/* Deep bowl */}
-        <radialGradient id={g3} cx="50%" cy="44%" r="36%">
+        <radialGradient id={D.g3} cx="50%" cy="44%" r="36%">
           <stop offset="0%" stopColor="#131313" />
           <stop offset="50%" stopColor="#0c0c0c" />
           <stop offset="100%" stopColor="#060606" />
         </radialGradient>
-        {/* Flat sensor pad — faint top pool of light */}
-        <radialGradient id={g4} cx="50%" cy="32%" r="38%" fx="50%" fy="28%">
+        <radialGradient id={D.g4} cx="50%" cy="32%" r="38%" fx="50%" fy="28%">
           <stop offset="0%" stopColor="#1a1a1a" />
           <stop offset="40%" stopColor="#0f0f0f" />
           <stop offset="100%" stopColor="#090909" />
         </radialGradient>
-        {/* Bottom-weighted shadow (concave) */}
-        <radialGradient id={gSh} cx="50%" cy="112%" r="72%">
+        <radialGradient id={D.gSh} cx="50%" cy="112%" r="72%">
           <stop offset="0%" stopColor="#000000" stopOpacity="0" />
           <stop offset="45%" stopColor="#000000" stopOpacity="0.35" />
           <stop offset="100%" stopColor="#000000" stopOpacity="0.55" />
         </radialGradient>
-        {/* Top specular — very soft */}
-        <linearGradient id={gSpec} x1="50%" y1="0%" x2="50%" y2="55%">
+        <linearGradient id={D.gSpec} x1="50%" y1="0%" x2="50%" y2="55%">
           <stop offset="0%" stopColor="#ffffff" stopOpacity="0.11" />
           <stop offset="18%" stopColor="#ffffff" stopOpacity="0.04" />
           <stop offset="45%" stopColor="#ffffff" stopOpacity="0" />
           <stop offset="100%" stopColor="#000000" stopOpacity="0" />
         </linearGradient>
       </defs>
-      <circle cx="50" cy="50" r="50" fill={`url(#${g0})`} />
-      <circle cx="50" cy="50" r="44.5" fill={`url(#${g1})`} />
-      <circle cx="50" cy="50" r="35" fill={`url(#${g2})`} />
-      <circle cx="50" cy="50" r="28" fill={`url(#${g3})`} />
-      <circle cx="50" cy="50" r="19" fill={`url(#${g4})`} />
-      <circle cx="50" cy="50" r="50" fill={`url(#${gSh})`} />
-      <circle cx="50" cy="50" r="50" fill={`url(#${gSpec})`} />
+      {isDark ? (
+        <g>
+          <circle cx="50" cy="50" r="50" fill={`url(#${D.g0})`} />
+          <circle cx="50" cy="50" r="44.5" fill={`url(#${D.g1})`} />
+          <circle cx="50" cy="50" r="35" fill={`url(#${D.g2})`} />
+          <circle cx="50" cy="50" r="28" fill={`url(#${D.g3})`} />
+          <circle cx="50" cy="50" r="19" fill={`url(#${D.g4})`} />
+          <circle cx="50" cy="50" r="50" fill={`url(#${D.gSh})`} />
+          <circle cx="50" cy="50" r="50" fill={`url(#${D.gSpec})`} />
+        </g>
+      ) : (
+        <g>
+          <circle cx="50" cy="50" r="50" fill={`url(#${L.g0})`} />
+          <circle cx="50" cy="50" r="44.5" fill={`url(#${L.g1})`} />
+          <circle cx="50" cy="50" r="35" fill={`url(#${L.g2})`} />
+          <circle cx="50" cy="50" r="28" fill={`url(#${L.g3})`} />
+          <circle cx="50" cy="50" r="19" fill={`url(#${L.g4})`} />
+          <circle cx="50" cy="50" r="50" fill={`url(#${L.gSh})`} />
+          <circle cx="50" cy="50" r="50" fill={`url(#${L.gSpec})`} />
+        </g>
+      )}
     </svg>
   );
 }
@@ -175,8 +243,11 @@ interface MacKeyboardProps extends React.HTMLAttributes<HTMLDivElement> {
 /** Layout width (px) used for scale-to-fit when the container is narrower */
 const KEYBOARD_DESIGN_WIDTH = 820;
 
-const keyboardChromeClass =
-  "flex shrink-0 flex-col gap-1 rounded-xl border border-white/[0.07] bg-[#050505] p-1.5 font-sans antialiased shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:gap-1.5 sm:p-2";
+function getKeyboardChromeClass(isDark: boolean) {
+  return isDark
+    ? "flex shrink-0 flex-col gap-1 rounded-xl border border-white/[0.07] bg-[#050505] p-1.5 font-sans antialiased shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:gap-1.5 sm:p-2"
+    : "flex shrink-0 flex-col gap-1 rounded-xl border border-black/[0.08] bg-[#D1D3D9] p-1.5 font-sans antialiased shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] sm:gap-1.5 sm:p-2";
+}
 
 /**
  * Wide containers: keyboard stretches to full width (original large-screen behavior).
@@ -185,8 +256,9 @@ const keyboardChromeClass =
 function KeyboardViewportFit({
   className,
   children,
+  isDark,
   ...rest
-}: React.HTMLAttributes<HTMLDivElement>) {
+}: React.HTMLAttributes<HTMLDivElement> & { isDark: boolean }) {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const scaledBoardRef = React.useRef<HTMLDivElement>(null);
   const [wide, setWide] = React.useState(true);
@@ -232,7 +304,7 @@ function KeyboardViewportFit({
   }, [wide, measureScaled]);
 
   const innerClass = cn(
-    keyboardChromeClass,
+    getKeyboardChromeClass(isDark),
     wide ? "w-full min-w-0 max-w-full" : "w-[820px]",
     className,
   );
@@ -291,6 +363,27 @@ export function MacKeyboard({
   const audioCtxRef = React.useRef<AudioContext | null>(null);
   const buffersByUrlRef = React.useRef<Map<string, AudioBuffer>>(new Map());
   const virtualTimersRef = React.useRef<Map<string, number>>(new Map());
+
+  const { resolvedTheme } = useTheme();
+  const [themeReady, setThemeReady] = React.useState(false);
+  React.useEffect(() => setThemeReady(true), []);
+  /** Default dark until mounted — matches `defaultTheme="dark"` and avoids a light flash before hydration. */
+  const isDark = !themeReady ? true : (resolvedTheme ?? "dark") === "dark";
+
+  const fRowIconProps = React.useMemo(
+    () => ({
+      className: cn(
+        "size-[11px] shrink-0 sm:size-[13px] lg:size-[15px]",
+        isDark ? "text-zinc-100" : "text-[#6E6E73]",
+      ),
+      weight: "regular" as const,
+      "aria-hidden": true as const,
+    }),
+    [isDark],
+  );
+
+  const modText = isDark ? "text-zinc-300" : "text-[#6E6E73]";
+  const arrowFg = isDark ? "text-zinc-100" : "text-[#6E6E73]";
 
   React.useEffect(() => {
     const urls = new Set<string>();
@@ -475,21 +568,24 @@ export function MacKeyboard({
   }, [playForCode]);
 
   return (
-    <KeyboardContext.Provider
-      value={{ activeKeys, capsLockOn, activateVirtualKey }}
-    >
-      {children ? (
-        <div
-          className={cn(
-            "inline-flex items-center gap-1.5 rounded-xl border border-white/[0.07] bg-[#050505] p-2 font-sans antialiased shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
-            className,
-          )}
-          {...rest}
-        >
-          {children}
-        </div>
-      ) : (
-        <KeyboardViewportFit className={className} {...rest}>
+    <KeyboardAppearanceContext.Provider value={{ isDark }}>
+      <KeyboardContext.Provider
+        value={{ activeKeys, capsLockOn, activateVirtualKey }}
+      >
+        {children ? (
+          <div
+            className={cn(
+              isDark
+                ? "inline-flex items-center gap-1.5 rounded-xl border border-white/[0.07] bg-[#050505] p-2 font-sans antialiased shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
+                : "inline-flex items-center gap-1.5 rounded-xl border border-black/[0.08] bg-[#D1D3D9] p-2 font-sans antialiased shadow-[inset_0_1px_0_rgba(255,255,255,0.85)]",
+              className,
+            )}
+            {...rest}
+          >
+            {children}
+          </div>
+        ) : (
+          <KeyboardViewportFit isDark={isDark} className={className} {...rest}>
           {/* Row 1: Esc, F1-F12, Touch ID */}
           <Row>
             <MacKey
@@ -573,12 +669,17 @@ export function MacKeyboard({
             />
             <MacKey
               width={1}
-              className="!rounded-[6px] p-[8%] !shadow-[inset_0_1px_0_rgba(255,255,255,0.07),inset_0_-1px_0_rgba(0,0,0,0.5)]"
+              className={cn(
+                "!rounded-[6px] p-[8%]",
+                isDark
+                  ? "!shadow-[inset_0_1px_0_rgba(255,255,255,0.07),inset_0_-1px_0_rgba(0,0,0,0.5)]"
+                  : "!shadow-[inset_0_1px_0_rgba(255,255,255,0.92),inset_0_-1px_0_rgba(0,0,0,0.06)]",
+              )}
               aria-label="Touch ID"
             >
               <div className="flex h-full min-h-0 w-full items-center justify-center">
                 <div className="aspect-square w-[max(22px,min(31px,54%))] transform-gpu [contain:paint]">
-                  <TouchIdSensorGraphic />
+                  <TouchIdSensorGraphic isDark={isDark} />
                 </div>
               </div>
             </MacKey>
@@ -634,7 +735,10 @@ export function MacKeyboard({
               width={1.75}
               keyCode="CapsLock"
               interactive
-              className="relative items-start pl-2 pr-2 text-zinc-300 sm:pl-4 sm:pr-3"
+              className={cn(
+                "relative items-start pl-2 pr-2 sm:pl-4 sm:pr-3",
+                modText,
+              )}
             >
               <CapsLockIndicator />
               <span
@@ -696,15 +800,32 @@ export function MacKeyboard({
               className="relative items-center justify-center p-0"
             >
               <div className="pointer-events-none flex h-full w-full flex-col items-center justify-center gap-0.5 py-1 sm:hidden">
-                <span className="text-[8px] font-normal leading-none text-zinc-300">
+                <span
+                  className={cn(
+                    "text-[8px] font-normal leading-none",
+                    modText,
+                  )}
+                >
                   fn
                 </span>
-                <Globe className="h-3.5 w-3.5 shrink-0 text-zinc-300" />
+                <Globe
+                  className={cn("h-3.5 w-3.5 shrink-0", modText)}
+                />
               </div>
-              <span className="pointer-events-none absolute top-1.5 right-2 z-10 hidden text-[10px] font-normal leading-none text-zinc-300 sm:block">
+              <span
+                className={cn(
+                  "pointer-events-none absolute top-1.5 right-2 z-10 hidden text-[10px] font-normal leading-none sm:block",
+                  modText,
+                )}
+              >
                 fn
               </span>
-              <Globe className="pointer-events-none absolute bottom-2 left-2 hidden h-[18px] w-[18px] text-zinc-300 sm:block" />
+              <Globe
+                className={cn(
+                  "pointer-events-none absolute bottom-2 left-2 hidden h-[18px] w-[18px] sm:block",
+                  modText,
+                )}
+              />
             </MacKey>
             <MacKey
               width={1}
@@ -712,13 +833,24 @@ export function MacKeyboard({
               className="relative items-center justify-center p-0"
             >
               <div className="pointer-events-none flex h-full w-full flex-col items-center justify-center gap-0.5 py-1 sm:hidden">
-                <ChevronUp className="h-3.5 w-3.5 shrink-0 text-zinc-300" />
-                <span className="text-center text-[7px] font-normal leading-none text-zinc-300">
+                <ChevronUp className={cn("h-3.5 w-3.5 shrink-0", modText)} />
+                <span className={cn(
+                  "text-center text-[7px] font-normal leading-none",
+                  modText,
+                )}>
                   control
                 </span>
               </div>
-              <ChevronUp className="pointer-events-none absolute top-1.5 right-2 z-10 hidden h-[18px] w-[18px] text-zinc-300 sm:block" />
-              <span className="pointer-events-none absolute bottom-2 left-1/2 hidden -translate-x-1/2 text-center text-[10px] font-normal leading-none whitespace-nowrap text-zinc-300 sm:block">
+              <ChevronUp
+                  className={cn(
+                    "pointer-events-none absolute top-1.5 right-2 z-10 hidden h-[18px] w-[18px] sm:block",
+                    modText,
+                  )}
+                />
+              <span className={cn(
+                "pointer-events-none absolute bottom-2 left-1/2 hidden -translate-x-1/2 text-center text-[10px] font-normal leading-none whitespace-nowrap sm:block",
+                modText,
+              )}>
                 control
               </span>
             </MacKey>
@@ -730,17 +862,26 @@ export function MacKeyboard({
               <div className="pointer-events-none flex h-full w-full flex-col items-center justify-center gap-0.5 py-1 sm:hidden">
                 <Option
                   aria-hidden
-                  className="h-3.5 w-3.5 shrink-0 text-zinc-300"
+                  className={cn("h-3.5 w-3.5 shrink-0", modText)}
                 />
-                <span className="text-center text-[7px] font-normal leading-none text-zinc-300">
+                <span className={cn(
+                  "text-center text-[7px] font-normal leading-none",
+                  modText,
+                )}>
                   option
                 </span>
               </div>
               <Option
                 aria-hidden
-                className="pointer-events-none absolute top-1.5 right-2 z-10 hidden h-[18px] w-[18px] text-zinc-300 sm:block"
+                className={cn(
+                  "pointer-events-none absolute top-1.5 right-2 z-10 hidden h-[18px] w-[18px] sm:block",
+                  modText,
+                )}
               />
-              <span className="pointer-events-none absolute bottom-2 left-1/2 hidden -translate-x-1/2 text-center text-[10px] font-normal leading-none whitespace-nowrap text-zinc-300 sm:block">
+              <span className={cn(
+                "pointer-events-none absolute bottom-2 left-1/2 hidden -translate-x-1/2 text-center text-[10px] font-normal leading-none whitespace-nowrap sm:block",
+                modText,
+              )}>
                 option
               </span>
             </MacKey>
@@ -752,17 +893,26 @@ export function MacKeyboard({
               <div className="pointer-events-none flex h-full w-full flex-col items-center justify-center gap-0.5 py-1 sm:hidden">
                 <Command
                   aria-hidden
-                  className="h-3.5 w-3.5 shrink-0 text-zinc-300"
+                  className={cn("h-3.5 w-3.5 shrink-0", modText)}
                 />
-                <span className="text-center text-[7px] font-bold leading-none text-zinc-300">
+                <span className={cn(
+                  "text-center text-[7px] font-bold leading-none",
+                  modText,
+                )}>
                   command
                 </span>
               </div>
               <Command
                 aria-hidden
-                className="pointer-events-none absolute top-1.5 right-2 z-10 hidden h-[18px] w-[18px] text-zinc-300 sm:block"
+                className={cn(
+                  "pointer-events-none absolute top-1.5 right-2 z-10 hidden h-[18px] w-[18px] sm:block",
+                  modText,
+                )}
               />
-              <span className="pointer-events-none absolute bottom-2 left-1/2 hidden -translate-x-1/2 text-center text-[10px] font-bold leading-none whitespace-nowrap text-zinc-300 sm:block">
+              <span className={cn(
+                "pointer-events-none absolute bottom-2 left-1/2 hidden -translate-x-1/2 text-center text-[10px] font-bold leading-none whitespace-nowrap sm:block",
+                modText,
+              )}>
                 command
               </span>
             </MacKey>
@@ -776,17 +926,26 @@ export function MacKeyboard({
               <div className="pointer-events-none flex h-full w-full flex-col items-center justify-center gap-0.5 py-1 sm:hidden">
                 <Command
                   aria-hidden
-                  className="h-3.5 w-3.5 shrink-0 text-zinc-300"
+                  className={cn("h-3.5 w-3.5 shrink-0", modText)}
                 />
-                <span className="text-center text-[7px] font-bold leading-none text-zinc-300">
+                <span className={cn(
+                  "text-center text-[7px] font-bold leading-none",
+                  modText,
+                )}>
                   command
                 </span>
               </div>
               <Command
                 aria-hidden
-                className="pointer-events-none absolute top-1.5 left-2 z-10 hidden h-[18px] w-[18px] text-zinc-300 sm:block"
+                className={cn(
+                  "pointer-events-none absolute top-1.5 left-2 z-10 hidden h-[18px] w-[18px] sm:block",
+                  modText,
+                )}
               />
-              <span className="pointer-events-none absolute bottom-2 left-1/2 hidden -translate-x-1/2 text-center text-[10px] font-bold leading-none whitespace-nowrap text-zinc-300 sm:block">
+              <span className={cn(
+                "pointer-events-none absolute bottom-2 left-1/2 hidden -translate-x-1/2 text-center text-[10px] font-bold leading-none whitespace-nowrap sm:block",
+                modText,
+              )}>
                 command
               </span>
             </MacKey>
@@ -798,17 +957,26 @@ export function MacKeyboard({
               <div className="pointer-events-none flex h-full w-full flex-col items-center justify-center gap-0.5 py-1 sm:hidden">
                 <Option
                   aria-hidden
-                  className="h-3.5 w-3.5 shrink-0 text-zinc-300"
+                  className={cn("h-3.5 w-3.5 shrink-0", modText)}
                 />
-                <span className="text-center text-[7px] font-normal leading-none text-zinc-300">
+                <span className={cn(
+                  "text-center text-[7px] font-normal leading-none",
+                  modText,
+                )}>
                   option
                 </span>
               </div>
               <Option
                 aria-hidden
-                className="pointer-events-none absolute top-1.5 left-2 z-10 hidden h-[18px] w-[18px] text-zinc-300 sm:block"
+                className={cn(
+                  "pointer-events-none absolute top-1.5 left-2 z-10 hidden h-[18px] w-[18px] sm:block",
+                  modText,
+                )}
               />
-              <span className="pointer-events-none absolute bottom-2 left-1/2 hidden -translate-x-1/2 text-center text-[10px] font-normal leading-none whitespace-nowrap text-zinc-300 sm:block">
+              <span className={cn(
+                "pointer-events-none absolute bottom-2 left-1/2 hidden -translate-x-1/2 text-center text-[10px] font-normal leading-none whitespace-nowrap sm:block",
+                modText,
+              )}>
                 option
               </span>
             </MacKey>
@@ -819,7 +987,9 @@ export function MacKeyboard({
               className="grid h-full grid-cols-3 items-end gap-1 pl-0.5 sm:gap-1.5"
             >
               <MacKey width={1} keyCode="ArrowLeft" className="h-full">
-                <ArrowLeft className="h-3.5 w-3.5 text-zinc-100 sm:h-4 sm:w-4" />
+                <ArrowLeft
+                  className={cn("h-3.5 w-3.5 sm:h-4 sm:w-4", arrowFg)}
+                />
               </MacKey>
               <div className="flex h-full min-h-0 flex-col gap-1 sm:gap-1.5">
                 <MacKey
@@ -829,7 +999,9 @@ export function MacKeyboard({
                   style={{ flex: 1 }}
                   className="!min-h-0 items-center justify-center p-0 !rounded-[4px]"
                 >
-                  <ArrowUp className="h-2.5 w-2.5 text-zinc-100 sm:h-3 sm:w-3" />
+                  <ArrowUp
+                    className={cn("h-2.5 w-2.5 sm:h-3 sm:w-3", arrowFg)}
+                  />
                 </MacKey>
                 <MacKey
                   width={1}
@@ -838,17 +1010,22 @@ export function MacKeyboard({
                   style={{ flex: 1 }}
                   className="!min-h-0 items-center justify-center p-0 !rounded-[4px]"
                 >
-                  <ArrowDown className="h-2.5 w-2.5 text-zinc-100 sm:h-3 sm:w-3" />
+                  <ArrowDown
+                    className={cn("h-2.5 w-2.5 sm:h-3 sm:w-3", arrowFg)}
+                  />
                 </MacKey>
               </div>
               <MacKey width={1} keyCode="ArrowRight" className="h-full">
-                <ArrowRight className="h-3.5 w-3.5 text-zinc-100 sm:h-4 sm:w-4" />
+                <ArrowRight
+                  className={cn("h-3.5 w-3.5 sm:h-4 sm:w-4", arrowFg)}
+                />
               </MacKey>
             </div>
           </Row>
         </KeyboardViewportFit>
-      )}
-    </KeyboardContext.Provider>
+        )}
+      </KeyboardContext.Provider>
+    </KeyboardAppearanceContext.Provider>
   );
 }
 
@@ -872,6 +1049,7 @@ export function MacKey({
   ...props
 }: MacKeyProps) {
   const { activeKeys, activateVirtualKey } = React.useContext(KeyboardContext);
+  const { isDark } = useKeyboardAppearance();
 
   const interactCode =
     interactive && typeof keyCode === "string" ? keyCode : null;
@@ -926,10 +1104,14 @@ export function MacKey({
   const applyAspectRatio = !noAspectRatio;
 
   const faceClassName = cn(
-    "group relative flex h-full w-full min-w-0 select-none flex-col items-center justify-center overflow-hidden rounded-[4px] border border-white/[0.05] bg-[#121212] text-zinc-100",
-    "shadow-[inset_0_1px_0_rgba(255,255,255,0.05),inset_0_-1px_0_rgba(0,0,0,0.65),0_1px_0_rgba(0,0,0,0.4)]",
+    "group relative flex h-full w-full min-w-0 select-none flex-col items-center justify-center overflow-hidden rounded-[4px]",
+    isDark
+      ? "border border-white/[0.05] bg-[#121212] text-zinc-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),inset_0_-1px_0_rgba(0,0,0,0.65),0_1px_0_rgba(0,0,0,0.4)]"
+      : "border border-black/[0.07] bg-[#F4F4F6] text-[#6E6E73] shadow-[inset_0_1px_0_rgba(255,255,255,0.95),inset_0_-1px_0_rgba(0,0,0,0.06),0_0.5px_1px_rgba(0,0,0,0.06)]",
     isActive &&
-      "translate-y-px scale-[0.99] border-white/[0.04] bg-[#0a0a0a] shadow-[inset_0_2px_3px_rgba(0,0,0,0.6)]",
+      (isDark
+        ? "translate-y-px scale-[0.99] border-white/[0.04] bg-[#0a0a0a] shadow-[inset_0_2px_3px_rgba(0,0,0,0.6)]"
+        : "translate-y-px scale-[0.99] border-black/[0.06] bg-[#E8E8ED] shadow-[inset_0_1px_1px_rgba(0,0,0,0.1)]"),
     "transition-all duration-100 active:translate-y-px active:scale-[0.99]",
     interactCode && "cursor-pointer",
     className,
@@ -939,12 +1121,22 @@ export function MacKey({
     <>
       {/* Icon only keys (F-keys) */}
       {icon && !label && !subLabel && !children && (
-        <div className="flex h-full min-h-0 flex-col items-center justify-between py-1 text-zinc-100 sm:py-2">
+        <div
+          className={cn(
+            "flex h-full min-h-0 flex-col items-center justify-between py-1 sm:py-2",
+            isDark ? "text-zinc-100" : "text-[#6E6E73]",
+          )}
+        >
           <span className="text-[12px] sm:text-[14px] lg:text-[15px]">
             {icon}
           </span>
           {iconLabel && (
-            <span className="text-[5px] leading-none font-medium text-zinc-500 sm:text-[7px]">
+            <span
+              className={cn(
+                "text-[5px] leading-none font-medium sm:text-[7px]",
+                isDark ? "text-zinc-500" : "text-[#86868B]",
+              )}
+            >
               {iconLabel}
             </span>
           )}
@@ -954,10 +1146,20 @@ export function MacKey({
       {/* Number/Symbol keys */}
       {subLabel && (
         <div className="flex h-full min-h-0 flex-col items-center justify-between py-1 sm:py-2">
-          <span className="text-[9px] font-normal text-zinc-500 sm:text-xs">
+          <span
+            className={cn(
+              "text-[9px] font-normal sm:text-xs",
+              isDark ? "text-zinc-500" : "text-[#86868B]",
+            )}
+          >
             {subLabel}
           </span>
-          <span className="text-[11px] font-medium text-zinc-100 sm:text-sm">
+          <span
+            className={cn(
+              "text-[11px] font-medium sm:text-sm",
+              isDark ? "text-zinc-100" : "text-[#6E6E73]",
+            )}
+          >
             {label}
           </span>
         </div>
@@ -968,7 +1170,12 @@ export function MacKey({
         !icon &&
         typeof label === "string" &&
         label.length === 1 && (
-          <span className="font-medium text-sm text-zinc-100 sm:text-base lg:text-lg">
+          <span
+            className={cn(
+              "font-medium text-sm sm:text-base lg:text-lg",
+              isDark ? "text-zinc-100" : "text-[#6E6E73]",
+            )}
+          >
             {label}
           </span>
         )}
@@ -978,7 +1185,12 @@ export function MacKey({
         !icon &&
         (typeof label !== "string" || label.length > 1) &&
         !children && (
-          <span className="font-medium text-[9px] text-zinc-300 sm:text-xs">
+          <span
+            className={cn(
+              "font-medium text-[9px] sm:text-xs",
+              isDark ? "text-zinc-300" : "text-[#6E6E73]",
+            )}
+          >
             {label}
           </span>
         )}
