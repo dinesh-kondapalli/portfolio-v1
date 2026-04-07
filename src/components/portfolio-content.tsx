@@ -1,17 +1,21 @@
 "use client";
 
 import { GithubLogo } from "@phosphor-icons/react";
+import Image from "next/image";
 import { useTheme } from "next-themes";
 import * as React from "react";
 import { GithubCalendar } from "@/components/ui/github-calendar";
 import { MacKeyboard } from "@/components/ui/mac-keyboard";
 import { useThemeToggle } from "@/components/ui/skiper-ui/skiper26";
+import { cn } from "@/lib/utils";
 
 type Work = {
   title: string;
   description: string;
   githubHref: string;
   demoHref?: string;
+  /** Preview image path under `public`, e.g. `works/hello-space.webp`. Falls back to a shared placeholder. */
+  imageSrc?: string;
 };
 
 const works: Work[] = [
@@ -21,6 +25,7 @@ const works: Work[] = [
       "Spatial layouts and interface experiments—playing with depth, motion, and structure in the browser.",
     githubHref: "https://github.com/dinesh-kondapalli/hello-space",
     demoHref: "https://hellooo-space.vercel.app/",
+    imageSrc: "/works/hello-space.png",
   },
   {
     title: "Betternote",
@@ -28,26 +33,14 @@ const works: Work[] = [
       "A calm, focused note-taking surface on the web—minimal chrome and quick capture.",
     githubHref: "https://github.com/dinesh-kondapalli/betternote",
     demoHref: "https://betternote.vercel.app/",
-  },
-  {
-    title: "T1Chat",
-    description:
-      "Real-time chat UI: rooms, messaging flow, and a tight loop between design and implementation.",
-    githubHref: "https://github.com/dinesh-kondapalli/t1.chat",
-    demoHref: "https://t1chat.vercel.app/",
-  },
-  {
-    title: "Blockchain Explorer",
-    description:
-      "A block explorer for reading on-chain activity—accounts, transactions, and blocks in one clear view.",
-    githubHref: "https://github.com/dinesh-kondapalli/blockchain-explorer",
-    demoHref: "https://xyz-explorer.vercel.app/",
+    imageSrc: "/better-note.png",
   },
   {
     title: "Port Killer",
     description:
       "Collaboration on the open-source CLI that frees stuck dev ports. I built and shipped the Windows version.",
     githubHref: "https://github.com/productdevbook/port-killer",
+    imageSrc: "/works/port-killer.png",
   },
 ];
 
@@ -59,6 +52,72 @@ const textColumn = "w-full max-w-lg";
 
 const githubIconClass =
   "size-5 shrink-0 text-muted-foreground transition-colors hover:text-foreground";
+
+const workCardShell =
+  "group/card bg-muted/80 dark:bg-[#1a1a1a] border-border/80 hover:bg-muted dark:hover:bg-[#222222] relative flex h-[280px] cursor-pointer flex-col overflow-hidden rounded-[20px] border p-3 shadow-[0_8px_40px_-12px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.04)] transition-[background-color,box-shadow] duration-300 hover:shadow-[0_12px_48px_-12px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)] dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.06)]";
+
+const workThumbWrap =
+  "border-border/70 bg-muted/40 dark:bg-black/30 relative min-h-0 w-full flex-1 overflow-hidden rounded-2xl border";
+
+function WorkCard({ work }: { work: Work }) {
+  const primaryHref = work.demoHref ?? work.githubHref;
+  const thumb = work.imageSrc ?? "/works/placeholder.svg";
+
+  return (
+    <li className="flex justify-center">
+      <article className={cn(workCardShell, "w-full max-w-[26rem]")}>
+        <a
+          href={work.githubHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={cn(
+            "absolute top-4 right-4 z-20 flex size-8 items-center justify-center",
+            "text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] transition-transform duration-300",
+            "hover:scale-105 hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+          )}
+          aria-label={`${work.title} on GitHub`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <GithubLogo className="size-[18px]" weight="fill" aria-hidden />
+          <span className="sr-only">GitHub</span>
+        </a>
+
+        <a
+          href={primaryHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={work.description}
+          className="relative flex min-h-0 min-w-0 flex-1 flex-col rounded-[20px] outline-offset-2 focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <div className={workThumbWrap}>
+            <Image
+              src={thumb}
+              alt={`${work.title} preview`}
+              fill
+              className="object-cover transition-transform duration-500 ease-out group-hover/card:scale-[1.02]"
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            />
+          </div>
+
+          <div className="mt-2 flex shrink-0 items-center justify-between gap-3 px-0.5 pt-1">
+            <p className="truncate font-medium text-foreground">{work.title}</p>
+            <div className="flex shrink-0 items-center gap-2">
+              {work.demoHref ? (
+                <span className="text-foreground/50 text-sm font-medium">
+                  Live
+                </span>
+              ) : (
+                <span className="text-muted-foreground text-sm font-medium">
+                  Repo
+                </span>
+              )}
+            </div>
+          </div>
+        </a>
+      </article>
+    </li>
+  );
+}
 
 /** Sounds for the on-screen Space / Caps Lock keys (files in `/public`) */
 const INTERACTIVE_KEY_SOUNDS: Partial<Record<string, string>> = {
@@ -167,8 +226,8 @@ export function PortfolioContent() {
           className="px-4 py-20 sm:px-8 md:px-12"
           aria-labelledby="works-heading"
         >
-          <div className={sectionShell}>
-            <div className={textColumn}>
+          <div className={`${sectionShell} flex flex-col gap-10`}>
+            <div className="max-w-lg">
               <h2
                 id="works-heading"
                 className="font-medium text-lg tracking-tight"
@@ -176,49 +235,15 @@ export function PortfolioContent() {
                 Works
               </h2>
               <p className="mt-2 text-muted-foreground text-xs sm:text-sm">
-                Repos on GitHub; live demos where deployed.
+                Selected projects—open the card for the live app or repo; GitHub
+                is always one click on the badge.
               </p>
-              <ul className="mt-10 flex flex-col gap-11 sm:gap-12">
-                {works.map((w) => {
-                  const primaryHref = w.demoHref ?? w.githubHref;
-                  return (
-                    <li key={w.githubHref} className="flex gap-3">
-                      <a
-                        href={w.githubHref}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background rounded-sm"
-                        aria-label={`${w.title} on GitHub`}
-                      >
-                        <GithubLogo
-                          className={githubIconClass}
-                          weight="regular"
-                          aria-hidden
-                        />
-                      </a>
-                      <div className="min-w-0 flex-1">
-                        <a
-                          href={primaryHref}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="font-medium text-foreground text-sm transition-colors hover:text-muted-foreground"
-                        >
-                          {w.title}
-                          {w.demoHref ? (
-                            <span className="sr-only"> (opens live demo)</span>
-                          ) : (
-                            <span className="sr-only"> (opens GitHub)</span>
-                          )}
-                        </a>
-                        <p className="mt-1.5 max-w-md text-muted-foreground text-sm leading-relaxed">
-                          {w.description}
-                        </p>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
             </div>
+            <ul className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {works.map((w) => (
+                <WorkCard key={w.githubHref} work={w} />
+              ))}
+            </ul>
           </div>
         </section>
 
