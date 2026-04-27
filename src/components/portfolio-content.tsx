@@ -7,7 +7,59 @@ import * as React from "react";
 import { GithubCalendar } from "@/components/ui/github-calendar";
 import { MacKeyboard } from "@/components/ui/mac-keyboard";
 import { useThemeToggle } from "@/components/ui/skiper-ui/skiper26";
+import { DotmSquare3 } from "@/components/ui/dotm-square-3";
+import { DotmSquare4 } from "@/components/ui/dotm-square-4";
+import { DotmSquare5 } from "@/components/ui/dotm-square-5";
+import { DotmSquare11 } from "@/components/ui/dotm-square-11";
+import { DotmSquare12 } from "@/components/ui/dotm-square-12";
 import { cn } from "@/lib/utils";
+
+const DOT_COLORS = ["currentColor", "#7dd3fc", "#f43f5e", "#d9f99d"];
+
+const MATRIX_COMPONENTS = [
+  DotmSquare12,
+  DotmSquare3,
+  DotmSquare4,
+  DotmSquare5,
+  DotmSquare11,
+];
+
+function InteractiveDotMatrix() {
+  const [colorIndex, setColorIndex] = React.useState(0);
+  const [matrixIndex, setMatrixIndex] = React.useState(0);
+
+  const handleClick = () => {
+    setColorIndex((i) => (i + 1) % DOT_COLORS.length);
+    setMatrixIndex(Math.floor(Math.random() * MATRIX_COMPONENTS.length));
+  };
+
+  const ActiveMatrix = MATRIX_COMPONENTS[matrixIndex];
+
+  return (
+    <div className="mt-8 flex items-center gap-4">
+      <button
+        onClick={handleClick}
+        className="group relative flex items-center gap-4 rounded-xl text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        title="Tap to change matrix & color"
+      >
+        <ActiveMatrix
+          color={DOT_COLORS[colorIndex]}
+          size={56}
+          dotSize={6}
+          speed={1.2}
+          animated={true}
+          hoverAnimated={false}
+          className="transition-colors duration-500"
+        />
+        <div className="flex flex-col">
+          <span className="text-xs text-muted-foreground opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+            Click to shift matrix & colors
+          </span>
+        </div>
+      </button>
+    </div>
+  );
+}
 
 type Work = {
   title: string;
@@ -210,6 +262,7 @@ export function PortfolioContent() {
                   Email
                 </a>
               </nav>
+              <InteractiveDotMatrix />
             </div>
             <div className="mt-10 w-full min-w-0 pb-1">
               <GithubCalendar
